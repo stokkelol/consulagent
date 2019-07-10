@@ -33,7 +33,7 @@ type Agent struct {
 	Config  *Config
 	Agent   *consul.Agent
 	Catalog *consul.Catalog
-	KVS     *consul.KV
+	KV      *consul.KV
 }
 
 type CheckFunc func() bool
@@ -134,6 +134,6 @@ func (s *Agent) newClient() error {
 	}
 	s.Catalog = client.Catalog()
 	s.Agent = client.Agent()
-	s.KVS = client.KV()
+	s.KV = client.KV()
 	return nil
 }
