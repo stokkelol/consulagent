@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	consul "github.com/hashicorp/consul/api"
-	"os"
 	"time"
 )
 
@@ -117,6 +116,23 @@ func (s *Agent) UpdateTTL(check CheckFunc) {
 	}
 }
 
+func (s *Agent) LoadKV() (uint64, consul.KVPairs, error) {
+	kvPairs, meta, err := s.KV.List(s.formatPrefix(), nil)
+	if err != nil {
+		return 0, kvPairs, err
+	}
+
+	return meta.LastIndex, kvPairs, nil
+}
+
+func (s *Agent) IterateKV(kvPairs consul.KVPairs, creds map[string]string) {
+	for _, kv := range kvPairs {
+		if _, ok := creds[kv.Key]; ok {
+			creds[kv.Key] = string(kv.Value)
+		}
+	}
+}
+
 func (s *Agent) update(check CheckFunc) error {
 	if !check() {
 		if err := s.Agent.UpdateTTL(s.formatCheckID(), s.Config.FailPhrase, "fail"); err != nil {
@@ -129,7 +145,7 @@ func (s *Agent) update(check CheckFunc) error {
 
 func (s *Agent) newClient() error {
 	client, err := consul.NewClient(&consul.Config{
-		Address: fmt.Sprintf("%s:%d", os.Getenv("CONSUL_SERVER"), s.Config.AgentPort),
+		Address: fmt.Sprintf("%s:%d", s.Config.ConsulAddress, s.Config.AgentPort),
 	})
 	if err != nil {
 		return err
@@ -143,4 +159,12 @@ func (s *Agent) newClient() error {
 
 func (s *Agent) formatCheckID() string {
 	return fmt.Sprintf("service:%s", s.Config.ServiceName)
+}
+
+func (s *Agent) formatPrefix() string {
+	return fmt.Sprintf("%s/%s/", s.Config.ServiceName, s.Config.Env)
+}
+
+func (s *Agent) formatCredential(cred string) string {
+	return fmt.Sprintf("%s/%s/%s", s.Config.ServiceName, s.Config.Env, cred)
 }
