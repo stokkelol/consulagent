@@ -4,7 +4,12 @@ import (
 	"errors"
 	"fmt"
 	consul "github.com/hashicorp/consul/api"
+	"strings"
 	"time"
+)
+
+const (
+	keySeparator = "/"
 )
 
 var (
@@ -127,8 +132,9 @@ func (s *Agent) LoadKV() (uint64, consul.KVPairs, error) {
 
 func (s *Agent) IterateKV(kvPairs consul.KVPairs, creds map[string]string) {
 	for _, kv := range kvPairs {
-		if _, ok := creds[kv.Key]; ok {
-			creds[kv.Key] = string(kv.Value)
+		k := s.replaceKey(kv.Key)
+		if _, ok := creds[k]; ok {
+			creds[k] = string(kv.Value)
 		}
 	}
 }
@@ -167,4 +173,10 @@ func (s *Agent) formatPrefix() string {
 
 func (s *Agent) formatCredential(cred string) string {
 	return fmt.Sprintf("%s/%s/%s", s.Config.ServiceName, s.Config.Env, cred)
+}
+
+func (s *Agent) replaceKey(key string) string {
+	parts := strings.Split(key, keySeparator)
+
+	return parts[len(parts)-1]
 }
