@@ -98,6 +98,7 @@ func NewAgent(config *Config) (*Agent, error) {
 		Port:    s.Config.ContainerPort,
 		Address: s.Config.Address,
 		Tags:    []string{s.Config.Env},
+		ID:      s.Config.ServiceName,
 	}
 
 	if err := s.Agent.ServiceRegister(serviceDef); err != nil {
@@ -118,12 +119,12 @@ func (s *Agent) UpdateTTL(check CheckFunc) {
 
 func (s *Agent) update(check CheckFunc) error {
 	if !check() {
-		if err := s.Agent.UpdateTTL("Service: "+s.Config.ServiceName, s.Config.FailPhrase, "fail"); err != nil {
+		if err := s.Agent.UpdateTTL(s.formatCheckID(), s.Config.FailPhrase, "fail"); err != nil {
 			return err
 		}
 	}
 
-	return s.Agent.UpdateTTL("Service: "+s.Config.ServiceName, s.Config.PassPhrase, "pass")
+	return s.Agent.UpdateTTL(s.formatCheckID(), s.Config.PassPhrase, "pass")
 }
 
 func (s *Agent) newClient() error {
@@ -138,4 +139,8 @@ func (s *Agent) newClient() error {
 	s.Agent = client.Agent()
 	s.KV = client.KV()
 	return nil
+}
+
+func (s *Agent) formatCheckID() string {
+	return fmt.Sprintf("service:%s", s.Config.ServiceName)
 }
