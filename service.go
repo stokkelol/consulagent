@@ -128,7 +128,7 @@ type Service struct {
 	url     *url.URL
 }
 
-func NewService(name, address string, port int) (*Service, error) {
+func NewService(name, address, path string, port int) (*Service, error) {
 	u, err := url.Parse(fmt.Sprintf(hostFormat, address, port))
 	if err != nil {
 		return nil, err
@@ -139,6 +139,7 @@ func NewService(name, address string, port int) (*Service, error) {
 		port:    port,
 		name:    name,
 		url:     u,
+		path:    path,
 	}, nil
 }
 
