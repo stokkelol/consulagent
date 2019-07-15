@@ -128,19 +128,11 @@ type Service struct {
 	url     *url.URL
 }
 
-func NewService(name, address, path string, port int) (*Service, error) {
-	u, err := url.Parse(fmt.Sprintf(hostFormat, address, port))
-	if err != nil {
-		return nil, err
-	}
-
+func NewService(name, path string) *Service {
 	return &Service{
-		address: address,
-		port:    port,
-		name:    name,
-		url:     u,
-		path:    path,
-	}, nil
+		name: name,
+		path: path,
+	}
 }
 
 func (s *Service) Path() string {
