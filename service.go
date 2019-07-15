@@ -76,16 +76,17 @@ func (s *Services) Parse(env string) error {
 	defer s.m.Unlock()
 	for _, serv := range services {
 		if serv.Tags[0] == env {
-			entry := s.list[serv.ID]
-			entry.address = serv.Address
-			entry.port = serv.Port
+			if entry, ok := s.list[serv.ID]; ok {
+				entry.address = serv.Address
+				entry.port = serv.Port
 
-			url, err := url.Parse(prepareHost(entry.address, entry.port))
-			if err != nil {
-				return err
+				url, err := url.Parse(prepareHost(entry.address, entry.port))
+				if err != nil {
+					return err
+				}
+
+				entry.url = url
 			}
-
-			entry.url = url
 		}
 	}
 	s.populated = true
