@@ -1,7 +1,9 @@
 package consulagent
 
 import (
+	"errors"
 	"fmt"
+	consul "github.com/hashicorp/consul/api"
 	"net/url"
 	"sync"
 )
@@ -11,13 +13,16 @@ const (
 )
 
 type Services struct {
-	list map[string]*Service
-	m    sync.RWMutex
+	list      map[string]*Service
+	m         sync.RWMutex
+	agent     *consul.Agent
+	populated bool
 }
 
-func NewServices(services ...*Service) (*Services, error) {
+func NewServices(agent *consul.Agent, services ...*Service) (*Services, error) {
 	s := &Services{
-		list: make(map[string]*Service),
+		list:  make(map[string]*Service),
+		agent: agent,
 	}
 
 	for _, serv := range services {
@@ -62,6 +67,59 @@ func (s *Services) Has(name string) bool {
 	return false
 }
 
+func (s *Services) Parse(env string) error {
+	services, err := s.agent.Services()
+	if err != nil {
+		return err
+	}
+	s.m.Lock()
+	defer s.m.Unlock()
+	for _, serv := range services {
+		if serv.Tags[0] == env {
+			entry := s.list[serv.ID]
+			entry.address = serv.Address
+			entry.port = serv.Port
+
+			url, err := url.Parse(prepareHost(entry.address, entry.port))
+			if err != nil {
+				return err
+			}
+
+			entry.url = url
+		}
+	}
+	s.populated = true
+	return nil
+}
+
+func (s *Services) Update(env string) error {
+	if !s.populated {
+		return errors.New("services must be populated before updating")
+	}
+	services, err := s.agent.Services()
+	if err != nil {
+		return err
+	}
+	s.m.Lock()
+	defer s.m.Unlock()
+	for _, serv := range services {
+		entry := s.list[serv.ID]
+		if entry.address != serv.Address || entry.port != serv.Port {
+			entry.address = serv.Address
+			entry.port = serv.Port
+
+			url, err := url.Parse(prepareHost(entry.address, entry.port))
+			if err != nil {
+				return err
+			}
+
+			entry.url = url
+		}
+	}
+
+	return nil
+}
+
 type Service struct {
 	path    string
 	name    string
@@ -89,7 +147,7 @@ func (s *Service) Path() string {
 }
 
 func (s *Service) Host() string {
-	return fmt.Sprintf(hostFormat, s.address, s.port)
+	return prepareHost(s.address, s.port)
 }
 
 func (s *Service) Name() string {
@@ -106,4 +164,8 @@ func (s *Service) Port() int {
 
 func (s *Service) Url() *url.URL {
 	return s.url
+}
+
+func prepareHost(address string, port int) string {
+	return fmt.Sprintf(hostFormat, address, port)
 }
