@@ -103,17 +103,18 @@ func (s *Services) Update(env string) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	for _, serv := range services {
-		entry := s.list[serv.ID]
-		if entry.address != serv.Address || entry.port != serv.Port {
-			entry.address = serv.Address
-			entry.port = serv.Port
+		if entry, ok := s.list[serv.ID]; ok {
+			if entry.address != serv.Address || entry.port != serv.Port {
+				entry.address = serv.Address
+				entry.port = serv.Port
 
-			url, err := url.Parse(prepareHost(entry.address, entry.port))
-			if err != nil {
-				return err
+				url, err := url.Parse(prepareHost(entry.address, entry.port))
+				if err != nil {
+					return err
+				}
+
+				entry.url = url
 			}
-
-			entry.url = url
 		}
 	}
 
