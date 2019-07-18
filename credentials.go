@@ -1,6 +1,8 @@
 package consulagent
 
-import "sync"
+import (
+	"sync"
+)
 
 type Credentials struct {
 	mu sync.RWMutex
@@ -13,12 +15,13 @@ type Credentials struct {
 
 type Credential struct {
 	Name string
-	Map  []KV
+	Map  []*KV
 }
 
 type KV struct {
-	Index    uint64
-	KeyValue map[string]string
+	Index uint64
+	Key   string
+	Value string
 }
 
 func NewCredentials(name, env string, creds ...*Credential) *Credentials {
@@ -40,9 +43,19 @@ func NewCredential(name string, creds ...string) *Credential {
 	}
 
 	for _, cr := range creds {
-		m := map[string]string{cr: ""}
-		c.Map = append(c.Map, KV{KeyValue: m, Index: 0})
+		c.Map = append(c.Map, &KV{Key: cr, Index: 0, Value: ""})
 	}
 
 	return c
+}
+func (kv *KV) GetKV() (string, string) {
+	return kv.Key, kv.Value
+}
+
+func (kv *KV) GetKey() string {
+	return kv.Key
+}
+
+func (kv *KV) GetValue() string {
+	return kv.Value
 }
