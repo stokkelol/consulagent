@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	hostFormat = "http://%s:%d"
+	hostFormat = "http://%s"
 )
 
 type Services struct {
@@ -80,7 +80,7 @@ func (s *Services) Parse(env string) error {
 				entry.address = serv.Address
 				entry.port = serv.Port
 
-				url, err := url.Parse(prepareHost(entry.address, entry.port))
+				url, err := url.Parse(prepareHost(entry.address))
 				if err != nil {
 					return err
 				}
@@ -109,7 +109,7 @@ func (s *Services) Update(env string) error {
 				entry.address = serv.Address
 				entry.port = serv.Port
 
-				url, err := url.Parse(prepareHost(entry.address, entry.port))
+				url, err := url.Parse(prepareHost(entry.address))
 				if err != nil {
 					return err
 				}
@@ -142,7 +142,7 @@ func (s *Service) Path() string {
 }
 
 func (s *Service) Host() string {
-	return prepareHost(s.address, s.port)
+	return prepareHost(s.address)
 }
 
 func (s *Service) Name() string {
@@ -161,6 +161,6 @@ func (s *Service) Url() *url.URL {
 	return s.url
 }
 
-func prepareHost(address string, port int) string {
-	return fmt.Sprintf(hostFormat, address, port)
+func prepareHost(address string) string {
+	return fmt.Sprintf(hostFormat, address)
 }
