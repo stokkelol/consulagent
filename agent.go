@@ -167,32 +167,31 @@ func (a *Agent) UpdateKV(credentials *Credentials, period time.Duration, c chan 
 	ticker := time.NewTicker(period)
 
 	for range ticker.C {
-		kvPairs, meta, err := a.kv.List(a.formatPrefix(), nil)
+		kvPairs, meta, err := a.kv.List(a.formatPrefix(), &consul.QueryOptions{WaitIndex: credentials.Index})
 		if err != nil {
 			errChan <- err
 			continue
 		}
-
 		if meta.LastIndex == credentials.Index {
 			continue
 		}
 
-		for _, kvPair := range kvPairs {
-			// strip full path to key
-			k := a.replaceKey(kvPair.Key)
-			for _, cred := range credentials.List {
-				var credUpdated bool
-				for _, cr := range cred.Map {
+		for _, credential := range credentials.List {
+			var credUpdated bool
+			for _, cr := range credential.Map {
+				for _, kvPair := range kvPairs {
+					k := a.replaceKey(kvPair.Key)
 					if k == cr.Key && cr.Index != kvPair.ModifyIndex {
 						credUpdated = true
-						cr.Key = string(kvPair.Value)
+						cr.Value = string(kvPair.Value)
 						cr.Index = kvPair.ModifyIndex
 					}
 				}
+			}
 
-				if credUpdated {
-					c <- cred
-				}
+			if credUpdated {
+				credentials.Index = meta.LastIndex
+				c <- credential
 			}
 		}
 	}
