@@ -137,20 +137,63 @@ func (a *Agent) UpdateTTL(check CheckFunc) {
 	}
 }
 
-func (a *Agent) LoadKV() (uint64, consul.KVPairs, error) {
+func (a *Agent) LoadKV(credentials *Credentials) error {
 	kvPairs, meta, err := a.kv.List(a.formatPrefix(), nil)
 	if err != nil {
-		return 0, kvPairs, err
+		return err
 	}
 
-	return meta.LastIndex, kvPairs, nil
+	credentials.Index = meta.LastIndex
+
+	credentials.mu.Lock()
+	defer credentials.mu.Unlock()
+	for _, cred := range credentials.List {
+		for _, kvPair := range kvPairs {
+			// strip full path to key
+			k := a.replaceKey(kvPair.Key)
+			for _, cr := range cred.Map {
+				if _, ok := cr.KeyValue[k]; ok {
+					cr.KeyValue[k] = string(kvPair.Value)
+					cr.Index = kvPair.ModifyIndex
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
-func (a *Agent) IterateKV(kvPairs consul.KVPairs, creds map[string]string) {
-	for _, kv := range kvPairs {
-		k := a.replaceKey(kv.Key)
-		if _, ok := creds[k]; ok {
-			creds[k] = string(kv.Value)
+func (a *Agent) UpdateKV(credentials *Credentials, period time.Duration, c chan *Credential, errChan chan error) {
+	ticker := time.NewTicker(period)
+
+	for range ticker.C {
+		kvPairs, meta, err := a.kv.List(a.formatPrefix(), nil)
+		if err != nil {
+			errChan <- err
+			continue
+		}
+
+		if meta.LastIndex == credentials.Index {
+			continue
+		}
+
+		for _, kvPair := range kvPairs {
+			// strip full path to key
+			k := a.replaceKey(kvPair.Key)
+			for _, cred := range credentials.List {
+				var credUpdated bool
+				for _, m := range cred.Map {
+					if _, ok := m.KeyValue[k]; ok && m.Index != kvPair.ModifyIndex {
+						credUpdated = true
+						m.KeyValue[k] = string(kvPair.Value)
+						m.Index = kvPair.ModifyIndex
+					}
+				}
+
+				if credUpdated {
+					c <- cred
+				}
+			}
 		}
 	}
 }
