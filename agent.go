@@ -152,9 +152,9 @@ func (a *Agent) LoadKV(credentials *Credentials) error {
 			// strip full path to key
 			k := a.replaceKey(kvPair.Key)
 			for _, cr := range cred.Map {
-				if _, ok := cr.KeyValue[k]; ok {
-					cr.KeyValue[k] = string(kvPair.Value)
-					cr.Index = kvPair.ModifyIndex
+				if cr.Key == k {
+					cr.Value = string(kvPair.Value)
+					cr.Index = kvPair.CreateIndex
 				}
 			}
 		}
@@ -182,11 +182,11 @@ func (a *Agent) UpdateKV(credentials *Credentials, period time.Duration, c chan 
 			k := a.replaceKey(kvPair.Key)
 			for _, cred := range credentials.List {
 				var credUpdated bool
-				for _, m := range cred.Map {
-					if _, ok := m.KeyValue[k]; ok && m.Index != kvPair.ModifyIndex {
+				for _, cr := range cred.Map {
+					if k == cr.Key && cr.Index != kvPair.ModifyIndex {
 						credUpdated = true
-						m.KeyValue[k] = string(kvPair.Value)
-						m.Index = kvPair.ModifyIndex
+						cr.Key = string(kvPair.Value)
+						cr.Index = kvPair.ModifyIndex
 					}
 				}
 
