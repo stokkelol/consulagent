@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	hostFormat = "http://%s"
+	withProxyFormat    = "http://%s"
+	withoutProxyFormat = "http://%s:%d"
 )
 
 type Services struct {
@@ -67,7 +68,7 @@ func (s *Services) Has(name string) bool {
 	return false
 }
 
-func (s *Services) Parse(env string) error {
+func (s *Services) Parse(env string, behindProxy bool) error {
 	services, err := s.agent.Services()
 	if err != nil {
 		return err
@@ -80,7 +81,7 @@ func (s *Services) Parse(env string) error {
 				entry.address = serv.Address
 				entry.port = serv.Port
 
-				url, err := url.Parse(prepareHost(entry.address))
+				url, err := url.Parse(prepareHost(entry, behindProxy))
 				if err != nil {
 					return err
 				}
@@ -93,7 +94,7 @@ func (s *Services) Parse(env string) error {
 	return nil
 }
 
-func (s *Services) Update(env string) error {
+func (s *Services) Update(env string, behindProxy bool) error {
 	if !s.populated {
 		return errors.New("services must be populated before updating")
 	}
@@ -109,7 +110,7 @@ func (s *Services) Update(env string) error {
 				entry.address = serv.Address
 				entry.port = serv.Port
 
-				url, err := url.Parse(prepareHost(entry.address))
+				url, err := url.Parse(prepareHost(entry, behindProxy))
 				if err != nil {
 					return err
 				}
@@ -142,7 +143,7 @@ func (s *Service) Path() string {
 }
 
 func (s *Service) Host() string {
-	return prepareHost(s.address)
+	return s.url.Host
 }
 
 func (s *Service) Name() string {
@@ -161,6 +162,10 @@ func (s *Service) Url() *url.URL {
 	return s.url
 }
 
-func prepareHost(address string) string {
-	return fmt.Sprintf(hostFormat, address)
+func prepareHost(s *Service, behindProxy bool) string {
+	if behindProxy {
+		return fmt.Sprintf(withProxyFormat, s.address)
+	}
+
+	return fmt.Sprintf(withoutProxyFormat, s.address, s.port)
 }

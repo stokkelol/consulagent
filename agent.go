@@ -27,6 +27,7 @@ type Config struct {
 	Env           string
 	ConsulAddress string
 	AgentPort     int
+	BehindProxy   bool
 	PassPhrase    string
 	FailPhrase    string
 
