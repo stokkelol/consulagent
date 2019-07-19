@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	format            = "http://%s"
-	behindProxyFormat = "http://%s:%d"
+	withProxyFormat    = "http://%s"
+	withoutProxyFormat = "http://%s:%d"
 )
 
 type Services struct {
@@ -164,8 +164,8 @@ func (s *Service) Url() *url.URL {
 
 func prepareHost(s *Service, behindProxy bool) string {
 	if behindProxy {
-		return fmt.Sprintf(format, s.address)
+		return fmt.Sprintf(withProxyFormat, s.address)
 	}
 
-	return fmt.Sprintf(behindProxyFormat, s.address, s.port)
+	return fmt.Sprintf(withoutProxyFormat, s.address, s.port)
 }
