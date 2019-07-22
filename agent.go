@@ -138,66 +138,6 @@ func (a *Agent) UpdateTTL(check CheckFunc) {
 	}
 }
 
-func (a *Agent) LoadKV(credentials *Credentials) error {
-	kvPairs, meta, err := a.kv.List(a.formatPrefix(), nil)
-	if err != nil {
-		return err
-	}
-
-	credentials.Index = meta.LastIndex
-
-	credentials.mu.Lock()
-	defer credentials.mu.Unlock()
-	for _, cred := range credentials.List {
-		for _, kvPair := range kvPairs {
-			// strip full path to key
-			k := a.replaceKey(kvPair.Key)
-			for _, cr := range cred.Map {
-				if cr.Key == k {
-					cr.Value = string(kvPair.Value)
-					cr.Index = kvPair.CreateIndex
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (a *Agent) UpdateKV(credentials *Credentials, period time.Duration, c chan *Credential, errChan chan error) {
-	ticker := time.NewTicker(period)
-
-	for range ticker.C {
-		kvPairs, meta, err := a.kv.List(a.formatPrefix(), &consul.QueryOptions{WaitIndex: credentials.Index})
-		if err != nil {
-			errChan <- err
-			continue
-		}
-		if meta.LastIndex == credentials.Index {
-			continue
-		}
-
-		for _, credential := range credentials.List {
-			var credUpdated bool
-			for _, cr := range credential.Map {
-				for _, kvPair := range kvPairs {
-					k := a.replaceKey(kvPair.Key)
-					if k == cr.Key && cr.Index != kvPair.ModifyIndex {
-						credUpdated = true
-						cr.Value = string(kvPair.Value)
-						cr.Index = kvPair.ModifyIndex
-					}
-				}
-			}
-
-			if credUpdated {
-				credentials.Index = meta.LastIndex
-				c <- credential
-			}
-		}
-	}
-}
-
 func (a *Agent) update(check CheckFunc) error {
 	if !check() {
 		if err := a.agent.UpdateTTL(a.formatCheckID(), a.config.FailPhrase, "fail"); err != nil {
