@@ -162,6 +162,14 @@ func (s *Service) Url() *url.URL {
 	return s.url
 }
 
+func (s *Service) HostString(protocol string) string {
+	if s.url != nil {
+		return fmt.Sprintf("%s://%s", protocol, s.url.Host)
+	}
+
+	return ""
+}
+
 func prepareHost(s *Service, behindProxy bool) string {
 	if behindProxy {
 		return fmt.Sprintf(withProxyFormat, s.address)
