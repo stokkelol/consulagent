@@ -11,6 +11,8 @@ import (
 const (
 	withProxyFormat    = "http://%s"
 	withoutProxyFormat = "http://%s:%d"
+
+	nameWithEnv = "%s-%s"
 )
 
 type Services struct {
@@ -184,4 +186,8 @@ func prepareHost(s *Service, behindProxy bool) string {
 	}
 
 	return fmt.Sprintf(withoutProxyFormat, s.address, s.port)
+}
+
+func PrepareServiceNameEnv(name, env string) string {
+	return fmt.Sprintf(nameWithEnv, name, env)
 }
