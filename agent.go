@@ -10,18 +10,26 @@ import (
 
 const (
 	keySeparator = "/"
+
+	defaultHostPort      = 80
+	defaultAgentHost     = "127.0.0.1"
+	defaultAgentPort     = 8500
+	defaultContainerPort = 9000
 )
 
 var (
 	errServiceName        = errors.New("service name is not provided")
 	errServiceAddr        = errors.New("service address is not provided")
 	errConsulAddr         = errors.New("consul address is not provided")
+	errServiceEnv         = errors.New("service environment is not provided")
 	errConfigNotValidated = errors.New("consul agent config has not been validated")
 )
 
 type Config struct {
 	ServiceName   string
 	ContainerPort int
+	HostPort      int
+	TargetPort    int
 	Address       string
 	TTL           time.Duration
 	Env           string
@@ -49,28 +57,40 @@ func (c *Config) Validate() error {
 		return errServiceName
 	}
 
-	if c.ContainerPort == 0 {
-		c.ContainerPort = 9000
+	if c.Env == "" {
+		return errServiceEnv
 	}
 
 	if c.Address == "" {
 		return errServiceAddr
 	}
 
-	if c.TTL == 0 {
-		c.TTL = time.Duration(time.Second * 15)
-	}
-
-	if c.Env == "" {
-		c.Env = "dev"
-	}
-
 	if c.ConsulAddress == "" {
-		return errConsulAddr
+		c.ConsulAddress = defaultAgentHost
+	}
+
+	if c.ContainerPort == 0 {
+		c.ContainerPort = defaultContainerPort
+	}
+
+	if c.HostPort == 0 {
+		c.HostPort = defaultHostPort
+	}
+
+	if c.TargetPort == 0 {
+		if c.BehindProxy {
+			c.TargetPort = c.HostPort
+		} else {
+			c.TargetPort = c.ContainerPort
+		}
+	}
+
+	if c.TTL == 0 {
+		c.TTL = time.Second * 15
 	}
 
 	if c.AgentPort == 0 {
-		c.AgentPort = 8500
+		c.AgentPort = defaultAgentPort
 	}
 
 	if c.PassPhrase == "" {
@@ -80,7 +100,9 @@ func (c *Config) Validate() error {
 	if c.FailPhrase == "" {
 		c.FailPhrase = "Service unreachable."
 	}
+
 	c.validated = true
+
 	return nil
 }
 
@@ -100,7 +122,7 @@ func NewAgent(config *Config) (*Agent, error) {
 		Check: &consul.AgentServiceCheck{
 			TTL: s.config.TTL.String(),
 		},
-		Port:    s.config.ContainerPort,
+		Port:    s.config.TargetPort,
 		Address: s.config.Address,
 		Tags:    []string{s.config.Env},
 		ID:      s.config.ServiceName,
