@@ -68,7 +68,11 @@ func (c *Config) Validate() error {
 	}
 
 	if c.ConsulAddress == "" {
-		c.ConsulAddress = defaultAgentHost
+		if c.BehindProxy {
+			c.ConsulAddress = c.Address
+		} else {
+			c.ConsulAddress = defaultAgentHost
+		}
 	}
 
 	if c.ContainerPort == 0 {
