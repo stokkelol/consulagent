@@ -15,12 +15,14 @@ const (
 	defaultAgentHost     = "127.0.0.1"
 	defaultAgentPort     = 8500
 	defaultContainerPort = 9000
+
+	statusPass = "pass"
+	statusFail = "fail"
 )
 
 var (
 	errServiceName        = errors.New("service name is not provided")
 	errServiceAddr        = errors.New("service address is not provided")
-	errConsulAddr         = errors.New("consul address is not provided")
 	errServiceEnv         = errors.New("service environment is not provided")
 	errConfigNotValidated = errors.New("consul agent config has not been validated")
 )
@@ -162,12 +164,12 @@ func (a *Agent) UpdateTTL(check CheckFunc) {
 
 func (a *Agent) update(check CheckFunc) error {
 	if !check() {
-		if err := a.agent.UpdateTTL(a.formatCheckID(), a.config.FailPhrase, "fail"); err != nil {
+		if err := a.agent.UpdateTTL(a.formatCheckID(), a.config.FailPhrase, statusFail); err != nil {
 			return err
 		}
 	}
 
-	return a.agent.UpdateTTL(a.formatCheckID(), a.config.PassPhrase, "pass")
+	return a.agent.UpdateTTL(a.formatCheckID(), a.config.PassPhrase, statusPass)
 }
 
 func (a *Agent) newClient() error {

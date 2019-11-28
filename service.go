@@ -15,6 +15,7 @@ const (
 	nameWithEnv = "%s-%s"
 )
 
+// Services list of all registered services
 type Services struct {
 	list      map[string]*Service
 	m         sync.RWMutex
@@ -22,6 +23,7 @@ type Services struct {
 	populated bool
 }
 
+// NewServices returns new instance of Services object
 func NewServices(agent *consul.Agent, services ...*Service) (*Services, error) {
 	s := &Services{
 		list:  make(map[string]*Service),
@@ -37,12 +39,14 @@ func NewServices(agent *consul.Agent, services ...*Service) (*Services, error) {
 	return s, nil
 }
 
+// Get returns service instance by name
 func (s *Services) Get(name string) *Service {
 	s.m.RLock()
 	defer s.m.RUnlock()
 	return s.list[name]
 }
 
+// Add
 func (s *Services) Add(service *Service) error {
 	if s.Has(service.name) {
 		return nil
