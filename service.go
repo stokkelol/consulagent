@@ -104,7 +104,7 @@ func (s *Services) updateService(entries []*consul.CatalogService, env string, b
 					if err != nil {
 						return err
 					}
-
+					entry.index = serv.ModifyIndex
 					entry.url = url
 				}
 			}
