@@ -19,15 +19,15 @@ const (
 type Services struct {
 	list      map[string]*Service
 	m         sync.RWMutex
-	agent     *consul.Agent
+	catalog   *consul.Catalog
 	populated bool
 }
 
 // NewServices returns new instance of Services object
-func NewServices(agent *consul.Agent, services ...*Service) (*Services, error) {
+func NewServices(catalog *consul.Catalog, services ...*Service) (*Services, error) {
 	s := &Services{
-		list:  make(map[string]*Service),
-		agent: agent,
+		list:    make(map[string]*Service),
+		catalog: catalog,
 	}
 
 	for _, serv := range services {
@@ -75,28 +75,42 @@ func (s *Services) Has(name string) bool {
 }
 
 func (s *Services) Parse(env string, behindProxy bool) error {
-	services, err := s.agent.Services()
-	if err != nil {
-		return err
+	for _, entry := range s.list {
+		entries, _, err := s.catalog.Service(entry.name, env, nil)
+		if err != nil {
+			return err
+		}
+
+		if err := s.updateService(entries, env, behindProxy); err != nil {
+			return err
+		}
 	}
+
+	s.populated = true
+	return nil
+}
+
+func (s *Services) updateService(entries []*consul.CatalogService, env string, behindProxy bool) error {
 	s.m.Lock()
 	defer s.m.Unlock()
-	for _, serv := range services {
-		if serv.Tags[0] == env {
-			if entry, ok := s.list[serv.ID]; ok {
-				entry.address = serv.Address
-				entry.port = serv.Port
+	for _, serv := range entries {
+		if serv.ServiceTags[0] == env {
+			if entry, ok := s.list[serv.ServiceName]; ok {
+				if entry.index != serv.ModifyIndex {
+					entry.address = serv.ServiceAddress
+					entry.port = serv.ServicePort
 
-				url, err := url.Parse(prepareHost(entry, behindProxy))
-				if err != nil {
-					return err
+					url, err := url.Parse(prepareHost(entry, behindProxy))
+					if err != nil {
+						return err
+					}
+
+					entry.url = url
 				}
-
-				entry.url = url
 			}
 		}
 	}
-	s.populated = true
+
 	return nil
 }
 
@@ -104,25 +118,14 @@ func (s *Services) Update(env string, behindProxy bool) error {
 	if !s.populated {
 		return errors.New("services must be populated before updating")
 	}
-	services, err := s.agent.Services()
-	if err != nil {
-		return err
-	}
-	s.m.Lock()
-	defer s.m.Unlock()
-	for _, serv := range services {
-		if entry, ok := s.list[serv.ID]; ok {
-			if entry.address != serv.Address || entry.port != serv.Port {
-				entry.address = serv.Address
-				entry.port = serv.Port
 
-				url, err := url.Parse(prepareHost(entry, behindProxy))
-				if err != nil {
-					return err
-				}
-
-				entry.url = url
-			}
+	for _, entry := range s.list {
+		entries, _, err := s.catalog.Service(entry.name, env, nil)
+		if err != nil {
+			return err
+		}
+		if err := s.updateService(entries, env, behindProxy); err != nil {
+			return err
 		}
 	}
 
@@ -135,6 +138,7 @@ type Service struct {
 	address string
 	port    int
 	url     *url.URL
+	index   uint64
 }
 
 func NewService(name, path string) *Service {
