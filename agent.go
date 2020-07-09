@@ -123,21 +123,6 @@ func NewAgent(config *Config) (*Agent, error) {
 		return nil, err
 	}
 
-	serviceDef := &consul.AgentServiceRegistration{
-		Name: s.config.ServiceName,
-		Check: &consul.AgentServiceCheck{
-			TTL: s.config.TTL.String(),
-		},
-		Port:    s.config.TargetPort,
-		Address: s.config.Address,
-		Tags:    []string{s.config.Env},
-		ID:      s.config.ServiceName,
-	}
-
-	if err := s.agent.ServiceRegister(serviceDef); err != nil {
-		return nil, err
-	}
-
 	return s, nil
 }
 
